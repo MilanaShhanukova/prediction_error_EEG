@@ -2,7 +2,8 @@ import mne
 from pathlib import Path
 import os
 import argparse
-
+from mne_icalabel import label_components
+import numpy as np
 
 def load_data(base_path, subject):
     """
@@ -78,13 +79,57 @@ def ica_analysis(raw_sessions):
         ica = mne.preprocessing.ICA(n_components=20, random_state=42, max_iter="auto")
         ica.fit(raw)
         ica.apply(raw)
-        ica_sessions[session] = raw
+    
+        labels = label_components(raw, ica, method="iclabel")  
+        ic_labels = labels["labels"]         
+        ic_probs = labels["y_pred_proba"]
+
+        eye_noise_comps = []
+        for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
+            # print(label, np.max(prob))
+            # print(np.max(prob))
+            if (label == "eye blink" or label == "muscle artifact") and np.max(prob) > 0.8:
+                eye_noise_comps.append(comp_idx)
+
+        print(f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}")
+        ica.exclude = eye_noise_comps  # Mark components for exclusion
+        raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
+
+        ica_sessions[session] = raw_clean
 
     for session, raw in ica_sessions.items():
         print(f"Filtering for ERP analysis in {session}...")
         raw.filter(l_freq=0.2, h_freq=35)
 
     return ica_sessions
+
+
+def run_amica_iclabel_and_clean(raw, n_components=20, prob_threshold=0.8):
+    print("Fitting ICA...")
+    ica = ICA(n_components=n_components, random_state=42, max_iter="auto", method="fastica")
+    ica.fit(raw)
+
+    # Step 2: Label ICA components with ICLabel
+    print("Labeling components with ICLabel...")
+    labels = label_components(raw, ica, method="iclabel")  
+    ic_labels = labels["labels"]         
+    ic_probs = labels["y_pred_proba"]
+
+    eye_noise_comps = []
+    for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
+        # print(label, np.max(prob))
+        # print(np.max(prob))
+        if (label == "eye blink" or label == "muscle artifact") and np.max(prob) > prob_threshold:
+            eye_noise_comps.append(comp_idx)
+
+    print(f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}")
+
+    ica.exclude = eye_noise_comps  # Mark components for exclusion
+    raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
+
+    return raw_clean, ica, labels
+
+
 
 
 def save_sessions(sessions, save_dir):
