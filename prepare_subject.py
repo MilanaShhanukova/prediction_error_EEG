@@ -5,10 +5,11 @@ import argparse
 from mne_icalabel import label_components
 import numpy as np
 
+
 def load_data(base_path, subject):
     """
     Step 1
-    1. Read the data for all sessions, 
+    1. Read the data for all sessions,
     2. rename channels,
     3. apply the 10-20 montage.
     """
@@ -24,11 +25,13 @@ def load_data(base_path, subject):
             raise FileNotFoundError(f"Path does not exist: {path}")
 
         vhdr_file = path / f"{subject}_{session}_task-PredictionError_eeg.vhdr"
+
         if not vhdr_file.exists():
             raise FileNotFoundError(f"File not found: {vhdr_file}")
 
         print(f"Loading data for {session}...")
         raw = mne.io.read_raw_brainvision(str(vhdr_file), preload=True)
+        raw = mne.add_reference_channels(raw, ref_channels=["FCz"])
 
         print(f"Cleaning channel names for {session}...")
         raw.rename_channels(lambda x: x.replace("BrainVision RDA_", ""))
@@ -45,16 +48,11 @@ def filter_downsample(raw_sessions):
     1. Bandpass filter: 1-124.9 Hz
     2. Downsample to 250 Hz
     3. Re-reference to the average.
+    4. Notch filtering
     """
     for session, raw in raw_sessions.items():
         print(f"Processing data for {session}...")
-
-        # Check frequency range
-        psd, freqs = raw.compute_psd().get_data(return_freqs=True)
-        max_freq = freqs.max()
-        min_freq = freqs.min()
-        print(f"Frequency range in the data: {min_freq} Hz to {max_freq} Hz")
-
+        
         # Bandpass filter
         raw.filter(l_freq=1, h_freq=124.9)
 
@@ -63,6 +61,7 @@ def filter_downsample(raw_sessions):
 
         # Re-reference
         raw.set_eeg_reference("average")
+        raw.notch_filter(freqs=[50])
 
     return raw_sessions
 
@@ -76,22 +75,28 @@ def ica_analysis(raw_sessions):
     ica_sessions = {}
     for session, raw in raw_sessions.items():
         print(f"Running ICA for {session}...")
-        ica = mne.preprocessing.ICA(n_components=20, random_state=42, max_iter="auto")
+        ica = mne.preprocessing.ICA(
+            n_components=20,
+            max_iter="auto",
+            method="infomax",
+            random_state=97,
+            fit_params=dict(extended=True),
+        )
         ica.fit(raw)
         ica.apply(raw)
-    
-        labels = label_components(raw, ica, method="iclabel")  
-        ic_labels = labels["labels"]         
+
+        labels = label_components(raw, ica, method="iclabel")
+        ic_labels = labels["labels"]
         ic_probs = labels["y_pred_proba"]
 
         eye_noise_comps = []
         for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
-            # print(label, np.max(prob))
-            # print(np.max(prob))
-            if (label == "eye blink" or label == "muscle artifact") and np.max(prob) > 0.8:
+            if label not in ["brain", "other"] and np.max(prob) > 0.8:
                 eye_noise_comps.append(comp_idx)
 
-        print(f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}")
+        print(
+            f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}"
+        )
         ica.exclude = eye_noise_comps  # Mark components for exclusion
         raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
 
@@ -99,37 +104,9 @@ def ica_analysis(raw_sessions):
 
     for session, raw in ica_sessions.items():
         print(f"Filtering for ERP analysis in {session}...")
-        raw.filter(l_freq=0.2, h_freq=35)
+        raw.filter(l_freq=None, h_freq=35)
 
     return ica_sessions
-
-
-def run_amica_iclabel_and_clean(raw, n_components=20, prob_threshold=0.8):
-    print("Fitting ICA...")
-    ica = ICA(n_components=n_components, random_state=42, max_iter="auto", method="fastica")
-    ica.fit(raw)
-
-    # Step 2: Label ICA components with ICLabel
-    print("Labeling components with ICLabel...")
-    labels = label_components(raw, ica, method="iclabel")  
-    ic_labels = labels["labels"]         
-    ic_probs = labels["y_pred_proba"]
-
-    eye_noise_comps = []
-    for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
-        # print(label, np.max(prob))
-        # print(np.max(prob))
-        if (label == "eye blink" or label == "muscle artifact") and np.max(prob) > prob_threshold:
-            eye_noise_comps.append(comp_idx)
-
-    print(f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}")
-
-    ica.exclude = eye_noise_comps  # Mark components for exclusion
-    raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
-
-    return raw_clean, ica, labels
-
-
 
 
 def save_sessions(sessions, save_dir):
