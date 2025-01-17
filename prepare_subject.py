@@ -52,7 +52,7 @@ def filter_downsample(raw_sessions):
     """
     for session, raw in raw_sessions.items():
         print(f"Processing data for {session}...")
-        
+
         # Bandpass filter
         raw.filter(l_freq=1, h_freq=124.9)
 
@@ -122,12 +122,16 @@ def save_sessions(sessions, save_dir):
         raw.save(save_path, overwrite=True)
 
 
-def main(base_path, save_dir, subject):
+def prepare_subject_ica(base_path, save_dir, subject):
     """
     Main function to process EEG data.
     """
     base_path = Path(base_path)
-    save_dir = Path(save_dir)
+    save_dir = Path(save_dir) / subject
+
+    os.makedirs(save_dir, exist_ok=True)
+
+    print(f"Working with the subject {subject}")
 
     # Step 1: Create data paths and load raw sessions
     raw_sessions = load_data(base_path, subject)
