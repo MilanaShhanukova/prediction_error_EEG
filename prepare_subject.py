@@ -1,17 +1,22 @@
-import mne
-from pathlib import Path
-import os
+#!/usr/bin/env python
+
 import argparse
-from mne_icalabel import label_components
+import os
+from pathlib import Path
+
+import mne
 import numpy as np
+from mne_icalabel import label_components
 
 
-def load_data(base_path, subject):
+def load_raw_sessions(base_path, subject):
     """
-    Step 1
-    1. Read the data for all sessions,
-    2. rename channels,
-    3. apply the 10-20 montage.
+    1) For each of the three sessions (EMS, Visual, Vibro):
+       - Load the BrainVision .vhdr file
+       - Add 'FCz' as a reference channel
+       - Strip 'BrainVision RDA_' prefix from channel names
+       - Set the 10-20 montage
+    2) Return a dict of {session_name: Raw}.
     """
     data_paths = {
         "ses-EMS": base_path / subject / "ses-EMS" / "eeg",
@@ -21,60 +26,74 @@ def load_data(base_path, subject):
 
     raw_sessions = {}
     for session, path in data_paths.items():
-        if not os.path.exists(path):
+        if not path.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
 
         vhdr_file = path / f"{subject}_{session}_task-PredictionError_eeg.vhdr"
-
         if not vhdr_file.exists():
             raise FileNotFoundError(f"File not found: {vhdr_file}")
 
-        print(f"Loading data for {session}...")
+        print(f"Loading data for {session} from {vhdr_file}...")
         raw = mne.io.read_raw_brainvision(str(vhdr_file), preload=True)
+
+        # Add FCz reference channel
         raw = mne.add_reference_channels(raw, ref_channels=["FCz"])
 
-        print(f"Cleaning channel names for {session}...")
+        # Clean channel names and set standard montage
         raw.rename_channels(lambda x: x.replace("BrainVision RDA_", ""))
         montage = mne.channels.make_standard_montage("standard_1020")
         raw.set_montage(montage)
+
         raw_sessions[session] = raw
 
     return raw_sessions
 
 
-def filter_downsample(raw_sessions):
+def preprocess_raw_sessions(raw_sessions):
     """
-    Step 2: Filter the data and downsample it.
-    1. Bandpass filter: 1-124.9 Hz
-    2. Downsample to 250 Hz
-    3. Re-reference to the average.
-    4. Notch filtering
+    1) Bandpass filter each Raw to 1-124.9 Hz
+    2) Downsample to 250 Hz
+    3) Re-reference to the average
+    4) Notch filter at 50 Hz
     """
     for session, raw in raw_sessions.items():
-        print(f"Processing data for {session}...")
+        print(f"\n--- Preprocessing {session} ---")
 
-        # Bandpass filter
+        # 1) Bandpass (1–125 Hz)
+        print("  Filtering 1–125 Hz...")
         raw.filter(l_freq=1, h_freq=124.9)
 
-        # Downsample
+        # 2) Downsample to 250 Hz
+        print("  Downsampling to 250 Hz...")
         raw.resample(250)
 
-        # Re-reference
+        # 3) Average reference (including newly added 'FCz')
+        print("  Re-referencing to average...")
         raw.set_eeg_reference("average")
+
+        # 4) Notch filter at 50 Hz (plus harmonics if needed)
+        print("  Applying notch filter at 50 Hz...")
         raw.notch_filter(freqs=[50])
+
+        # Plot PSD
+        # raw.plot_psd(fmin=0.5, fmax=50, average=True)
 
     return raw_sessions
 
 
-def ica_analysis(raw_sessions):
+def run_ica_label_exclude(raw_sessions):
     """
-    Step 3: Apply ICA to clean artifacts and filter for ERP analysis.
-    - ICA is applied with 20 components.
-    - Data is filtered between 0.2–35 Hz after ICA.
+    1) Run ICA (Infomax, n=20, extended=True).
+    2) Label components with mne_icalabel.
+    3) Exclude components whose labels are not in ["brain", "other"].
+    4) Apply ICA to each session's Raw and return a dict of cleaned Raw.
     """
-    ica_sessions = {}
+    ica_cleaned = {}
+
     for session, raw in raw_sessions.items():
-        print(f"Running ICA for {session}...")
+        print(f"\n=== ICA for {session} ===")
+
+        # Setup ICA
         ica = mne.preprocessing.ICA(
             n_components=20,
             max_iter="auto",
@@ -82,90 +101,99 @@ def ica_analysis(raw_sessions):
             random_state=97,
             fit_params=dict(extended=True),
         )
+
+        # Fit ICA
+        print("  Fitting ICA...")
         ica.fit(raw)
 
-        labels = label_components(raw, ica, method="iclabel")
-        # ic_labels = labels["labels"]
-        # ic_probs = labels["y_pred_proba"]
+        # ica.plot_components(title=f"ICA Components: {session}")
+        # ica.plot_properties(raw, picks=[0, 1, 2])
+        # ica.plot_sources(raw, show_scrollbars=False, show=True)
 
-        # eye_noise_comps = []
-        # for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
-        #     if label not in ["brain", "other"]:
-        #         eye_noise_comps.append(comp_idx)
+        # Label the ICA components
+        print("  Labeling ICA components with ICLabel...")
+        ic_labels = label_components(raw, ica, method="iclabel")
+        labels = ic_labels["labels"]
+        print(f"  ICLabel assigned: {labels}")
+
+        # Exclude any component not labeled "brain" or "other" (matching the notebook)
         exclude_idx = [
-        idx for idx, label in enumerate(labels) if label not in ["brain", "other"]
-    ]
+            idx for idx, lab in enumerate(labels) if lab not in ["brain", "other"]
+        ]
+        print(f"  Excluding components: {exclude_idx}")
 
-        # ica.exclude = eye_noise_comps  # Mark components for exclusion
-        # raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
-        processed_raw = raw.copy()
-        ica.apply(processed_raw, exclude=exclude_idx)
-        # artifact_picks = mne.pick_channels(raw.info['ch_names'], include=[])
-
-
-        ica_sessions[session] = processed_raw
-
-    for session, raw in ica_sessions.items():
-        print(f"Filtering for ERP analysis in {session}...")
-        raw.filter(l_freq=None, h_freq=35)
-
-    return ica_sessions
+        # Make a copy and apply ICA to remove those components
+        raw_clean = raw.copy()
+        ica.apply(raw_clean, exclude=exclude_idx)
 
 
-def save_sessions(sessions, save_dir):
+        ica_cleaned[session] = raw_clean
+
+    return ica_cleaned
+
+
+def main():
     """
-    Save processed sessions to disk in FIF format.
+    complete pipeline:
+    1) Parse arguments
+    2) Load raw data for a single subject
+    3) Preprocess (filter, downsample, re-reference, notch)
+    4) Run ICA, label components, exclude artifacts
     """
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    for session, raw in sessions.items():
-        save_path = save_dir / f"{session}_processed_raw.fif"
-        print(f"Saving {session} data to {save_path}...")
-        raw.save(save_path, overwrite=True)
-
-
-def prepare_subject_ica(base_path, save_dir, subject):
-    """
-    Main function to process EEG data.
-    """
-    base_path = Path(base_path)
-    save_dir = Path(save_dir) / subject
-
-    os.makedirs(save_dir, exist_ok=True)
-
-    print(f"Working with the subject {subject}")
-
-    # Step 1: Create data paths and load raw sessions
-    raw_sessions = load_data(base_path, subject)
-
-    # Step 2: Filter and downsample
-    filtered_sessions = filter_downsample(raw_sessions)
-
-    # Step 3: Run ICA and ERP-related filtering
-    ica_sessions = ica_analysis(filtered_sessions)
-
-    # Save processed sessions
-    save_sessions(ica_sessions, save_dir)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process EEG data using MNE.")
+    parser = argparse.ArgumentParser(description="EEG Preprocessing up to ICA (MNE).")
     parser.add_argument(
         "--base_path",
         type=str,
         required=True,
-        help="Base directory containing the dataset.",
+        help="Base directory containing the dataset (e.g., ./ds003846-2.0.2).",
     )
     parser.add_argument(
-        "--save_dir",
+        "--subject",
         type=str,
         required=True,
-        help="Directory to save the processed data.",
+        help="Subject identifier (e.g., sub-02).",
     )
     parser.add_argument(
-        "--subject", type=str, required=True, help="Subject identifier (e.g., sub-02)."
+        "--outdir",
+        type=str,
+        required=False,
+        default=None,
+        help="Optional path to save the final cleaned Raw files.",
     )
 
     args = parser.parse_args()
-    prepare_subject_ica(args.base_path, args.save_dir, args.subject)
+
+    base_path = Path(args.base_path)
+    subject = args.subject
+
+    # Use provided outdir or default to 'processed_eeg_data'
+    outdir = Path(args.outdir) if args.outdir else Path("./processed_eeg")
+
+    print(f"\n\n>>> Starting pipeline for {subject} <<<")
+
+    # Step 1: Load data
+    raw_sessions = load_raw_sessions(base_path, subject)
+
+    # Step 2: Preprocess (filter, downsample, re-ref, notch)
+    raw_sessions = preprocess_raw_sessions(raw_sessions)
+
+    # Step 3: ICA and artifact rejection
+    clean_sessions = run_ica_label_exclude(raw_sessions)
+
+    # (Optional) Save the final cleaned data to .fif
+    if outdir:
+        # Create a subject-specific directory within the output folder
+        subject_outdir = outdir / subject
+        subject_outdir.mkdir(exist_ok=True, parents=True)
+
+        for sess, raw_clean in clean_sessions.items():
+            out_path = subject_outdir / f"{sess}_cleaned_raw.fif"
+            print(f"Saving cleaned {sess} data to {out_path}")
+            raw_clean.save(out_path, overwrite=True)
+
+
+    print("\n>>> Done! <<<\n")
+
+
+if __name__ == "__main__":
+    main()
