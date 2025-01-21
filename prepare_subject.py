@@ -83,24 +83,27 @@ def ica_analysis(raw_sessions):
             fit_params=dict(extended=True),
         )
         ica.fit(raw)
-        ica.apply(raw)
 
         labels = label_components(raw, ica, method="iclabel")
-        ic_labels = labels["labels"]
-        ic_probs = labels["y_pred_proba"]
+        # ic_labels = labels["labels"]
+        # ic_probs = labels["y_pred_proba"]
 
-        eye_noise_comps = []
-        for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
-            if label not in ["brain", "other"] and np.max(prob) > 0.8:
-                eye_noise_comps.append(comp_idx)
+        # eye_noise_comps = []
+        # for comp_idx, (label, prob) in enumerate(zip(ic_labels, ic_probs)):
+        #     if label not in ["brain", "other"]:
+        #         eye_noise_comps.append(comp_idx)
+        exclude_idx = [
+        idx for idx, label in enumerate(labels) if label not in ["brain", "other"]
+    ]
 
-        print(
-            f"Identified {len(eye_noise_comps)} components to remove: {eye_noise_comps}"
-        )
-        ica.exclude = eye_noise_comps  # Mark components for exclusion
-        raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
+        # ica.exclude = eye_noise_comps  # Mark components for exclusion
+        # raw_clean = ica.apply(raw.copy())  # Apply ICA cleaning
+        processed_raw = raw.copy()
+        ica.apply(processed_raw, exclude=exclude_idx)
+        # artifact_picks = mne.pick_channels(raw.info['ch_names'], include=[])
 
-        ica_sessions[session] = raw_clean
+
+        ica_sessions[session] = processed_raw
 
     for session, raw in ica_sessions.items():
         print(f"Filtering for ERP analysis in {session}...")
@@ -165,4 +168,4 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(args.base_path, args.save_dir, args.subject)
+    prepare_subject_ica(args.base_path, args.save_dir, args.subject)
