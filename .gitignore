@@ -1,7 +1,9 @@
 # ignore dataset folder
 ds003846-2.0.2/
+processed_eeg_data/
 
 .DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
