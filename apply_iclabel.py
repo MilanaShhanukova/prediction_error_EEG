@@ -22,11 +22,12 @@ for sub_dir in sorted(DERIV_ROOT.glob("sub-*")):
         clean_path = eeg_dir / f"{base}_proc-icaclean_raw.fif"
 
         raw = mne.io.read_raw_fif(raw_path, preload=True)
+        raw.set_eeg_reference(ref_channels="average", projection=False)
         ica = mne.preprocessing.read_ica(ica_path)
 
         # set montage so ICLabel has electrode locations
-        montage = mne.channels.make_standard_montage("standard_1020")
-        raw.set_montage(montage, on_missing="warn")
+        # montage = mne.channels.make_standard_montage("standard_1020")
+        # raw.set_montage(montage, on_missing="warn")
 
         # Run ICLabel
         labels = label_components(raw, ica, method="iclabel")["labels"]

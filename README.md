@@ -1,22 +1,26 @@
-# EEG Semester Project – mne-bids-pipeline Version
+# EEG Semester Project
 
-This branch uses the mne-bids-pipeline to preprocess EEG data from a Prediction Error experiment.
-The dataset is organized in BIDS format. The preprocessing configuration is defined in
-**config_pipeline.yml**, and the pipeline is run using **run_pipeline.sh**.
+This project replicates & extends the analysis from:
 
-## How to Run
+> “Detecting Visuo-Haptic Mismatches in Virtual Reality using the Prediction Error Negativity”
+> [doi.org/10.1145/3290605.3300657](https://doi.org/10.1145/3290605.3300657)
 
-1. **Install Dependencies:**
-   \`\`\`bash
-   pip install -r requirements.txt
-   \`\`\`
-2. **Run the Preprocessing Pipeline:**
-   \`\`\`bash
-   ./run_pipeline.sh
-   \`\`\`
-   Preprocessed files will be saved in the output directory specified in the config file.
-3. **Open the Analysis Notebook:**
-   \`\`\`bash
-   jupyter notebook notebooks/analysis.ipynb
-   \`\`\`
+## Installation
 
+```bash
+pip install -r requirements.txt
+```
+
+## Run the Pipeline
+
+```bash
+./run_pipeline.sh
+```
+
+## Analysis Steps
+
+1. **Patch BIDS Metadata**: Fix outdated acquisition times in `_scans.tsv`.
+2. **Prepare Raw EEG**: Add FCz reference and rename channels for BIDS compliance.
+3. **Use MNE-BIDS-Pipeline**: Filter, re-reference, and fit ICA.
+4. **Apply ICLabel**: Classify and remove unwanted ICA components on the raw data.
+5. **Group Analysis**: Parse “normal” vs. “conflict” trials at FCz, compute grand averages, and plot results.
