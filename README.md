@@ -25,7 +25,7 @@ This project replicates and extends the analysis from the paper:
    Example for subject `sub-02`:
 
    ```bash
-   ./run_pipeline.sh --base_path ./ds003846-2.0.2 --subject sub-02 --outdir processed_eeg_data
+   ./run_preprocessing.sh --base_path ./ds003846-2.0.2 --subject sub-02 --outdir processed_eeg_data
    ```
 
 4. **Open the analysis notebook**
