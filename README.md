@@ -1,9 +1,9 @@
 # EEG Semester Project
 
-This project replicates and extends the analysis from the paper:
+This project replicates & extends the analysis from:
 
-**"Detecting Visuo-Haptic Mismatches in Virtual Reality using the Prediction Error Negativity of Event-Related Brain Potentials"**
-([https://doi.org/10.1145/3290605.3300657](https://doi.org/10.1145/3290605.3300657))
+> “Detecting Visuo-Haptic Mismatches in Virtual Reality using the Prediction Error Negativity”
+> [doi.org/10.1145/3290605.3300657](https://doi.org/10.1145/3290605.3300657)
 
 
 ## How to Run
@@ -25,7 +25,7 @@ This project replicates and extends the analysis from the paper:
    Example for subject `sub-02`:
 
    ```bash
-   ./run_preprocessing.sh --base_path ./ds003846-2.0.2 --subject sub-02 --outdir processed_eeg_data
+   ./run_pipeline.sh --base_path ./ds003846-2.0.2 --subject sub-02 --outdir processed_eeg_data
    ```
 
 4. **Open the analysis notebook**
