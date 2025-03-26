@@ -17,7 +17,7 @@ python3 -u patch_acq_time.py
 # montage. We coudlnt add new reference channels or rename existing channels
 # directly within the BIDS pipeline, so we do it here instead.
 # limitations around channel naming and referencing.
-echo "Preparing and standardizing raw EEG files for bids pipeline input..."
+echo "Preparing and standardizing raw EEG files for bids pipeline...ex"
 python3 -u prepare_raw.py
 
 # ----------------------------------------
@@ -34,7 +34,7 @@ python3 -u prepare_raw.py
 echo "Running MNE-BIDS-Pipeline steps..."
 mne_bids_pipeline \
   --config config.py \
-  --steps preprocessing/_01_data_quality,preprocessing/_04_frequency_filter,preprocessing/_06a1_fit_ica
+  --steps preprocessing/_01_data_quality,preprocessing/_04_frequency_filter,preprocessing/_06a1_fit_ica,preprocessing/_06a2_find_ica_artifacts,preprocessing/_07_make_epochs,preprocessing/_08a_apply_ica
 
 # ----------------------------------------
 # 4. Apply ICLabel and exclude unwanted ICs
@@ -42,8 +42,8 @@ mne_bids_pipeline \
 # We rely on ICLabel to classify each ICA component and then we remove
 # components not labeled as "brain" or "other". We do this on the
 # raw data.
-echo "Applying ICLabel and removing non-brain components..."
-python3 -u apply_iclabel.py
+# echo "Applying ICLabel and removing non-brain components..."
+# python3 -u apply_iclabel.py
 
 # ----------------------------------------
 # 5. Group-level analysis

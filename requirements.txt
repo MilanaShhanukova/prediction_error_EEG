@@ -1,7 +1,8 @@
-mne>=1.2.0
+mne
 mne-icalabel
-mne-bids-pipeline
 numpy
 pandas
 matplotlib
 pyyaml
+#iclabel + mne_bids_pipeline
+git+https://github.com/jschepers/mne-bids-pipeline.git@merge_ic_label
