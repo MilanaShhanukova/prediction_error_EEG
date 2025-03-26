@@ -19,13 +19,13 @@ for sub_dir in sorted(DERIV_ROOT.glob("sub-*")):
     for ses_dir in sorted(sub_dir.glob("ses-*")):
         session = ses_dir.name
         eeg_dir = ses_dir / "eeg"
-        clean_raw = next(eeg_dir.glob(f"{subject}_{session}_task-{TASK}_proc-icaclean_raw.fif"), None)
+        clean_raw = next(eeg_dir.glob(f"{subject}_{session}_task-{TASK}_proc-clean_raw.fif"), None)
         if clean_raw is None:
             continue
 
         print(f"Loading cleaned raw for {subject}, {session}")
         raw = mne.io.read_raw_fif(clean_raw, preload=True)
-
+        raw.filter(l_freq=None, h_freq=35)
         # Read BIDS events TSV
         events_file = BIDS_ROOT / subject / session / "eeg" / f"{subject}_{session}_task-{TASK}_events.tsv"
         events_df = pd.read_csv(events_file, sep="\t")
@@ -41,7 +41,7 @@ for sub_dir in sorted(DERIV_ROOT.glob("sub-*")):
                             baseline=(None, 0), preload=True, event_repeated="drop")
         # Drop the worst 20% of epochs by peak-to-peak amplitude
         ptp = np.ptp(epochs.get_data(), axis=2).mean(axis=1)
-        threshold = np.percentile(ptp, 80)
+        threshold = np.percentile(ptp, 90)
         epochs.drop(np.where(ptp > threshold)[0], reason="ptp_reject")
 
         # Pick FCz only
@@ -55,8 +55,8 @@ for sub_dir in sorted(DERIV_ROOT.glob("sub-*")):
 # Compute grand averages
 grand_averages = {}
 for session, conds in group_evokeds.items():
-    all_norm = mne.concatenate_epochs(conds["normal"]).average().filter(l_freq=None, h_freq=10, verbose=False)
-    all_conf = mne.concatenate_epochs(conds["conflict"]).average().filter(l_freq=None, h_freq=10, verbose=False)
+    all_norm = mne.concatenate_epochs(conds["normal"]).average().filter(l_freq=None, h_freq=10)
+    all_conf = mne.concatenate_epochs(conds["conflict"]).average().filter(l_freq=None, h_freq=10)
     grand_averages[session] = {"normal": all_norm, "conflict": all_conf,
                                 "difference": mne.combine_evoked([all_conf, all_norm], weights=[1, -1])}
 
