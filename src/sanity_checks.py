@@ -1,6 +1,7 @@
 import mne
 import matplotlib.pyplot as plt
 
+
 def plot_psd_sanity(raw, session):
     """
     Plot the Power Spectral Density (PSD) for the given Raw object.
@@ -14,6 +15,7 @@ def plot_psd_sanity(raw, session):
     """
     print(f"Plotting PSD for sanity check of {session}...")
     raw.plot_psd(fmin=0.5, fmax=50, average=True, show=True)
+
 
 def check_channel_statistics(raw, session):
     """

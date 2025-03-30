@@ -1,5 +1,5 @@
 import mne
-from pathlib import Path
+
 
 def load_raw_sessions(base_path, subject):
     """
