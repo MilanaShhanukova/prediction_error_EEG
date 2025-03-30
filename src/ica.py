@@ -48,4 +48,4 @@ def run_ica_label_exclude(raw_sessions, n_components=ICA_N_COMPONENTS, random_st
         raw_clean = raw.copy()
         ica.apply(raw_clean, exclude=exclude_idx)
         ica_cleaned[session] = raw_clean
-    return ica_cleaned
+    return ica, ica_cleaned
