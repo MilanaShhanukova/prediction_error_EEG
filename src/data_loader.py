@@ -34,7 +34,12 @@ def load_raw_sessions(base_path, subject):
             raise FileNotFoundError(f"File not found: {vhdr_file}")
         print(f"Loading data for {session} from {vhdr_file}...")
         raw = mne.io.read_raw_brainvision(str(vhdr_file), preload=True)
-        raw = mne.add_reference_channels(raw, ref_channels=["FCz"])
+        # print(raw.get_eeg_reference())
+        if "FCz" in raw.info["ch_names"]:
+            raw.set_eeg_reference(ref_channels=["FCz"])
+        else:
+            raw = mne.add_reference_channels(raw, ref_channels=["FCz"])
+
         raw.rename_channels(lambda x: x.replace("BrainVision RDA_", ""))
         montage = mne.channels.make_standard_montage("standard_1020")
         raw.set_montage(montage)

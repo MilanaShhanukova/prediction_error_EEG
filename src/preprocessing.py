@@ -1,4 +1,4 @@
-from src.config import HIGHPASS, LOWPASS, DOWNSAMPLE, NOTCH_FREQS
+from config import HIGHPASS, LOWPASS, DOWNSAMPLE, NOTCH_FREQS
 
 
 def preprocess_raw_sessions(raw_sessions):

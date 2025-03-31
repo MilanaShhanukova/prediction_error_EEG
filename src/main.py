@@ -11,29 +11,30 @@ def main():
     parser = argparse.ArgumentParser(description="EEG Preprocessing Pipeline")
     parser.add_argument("--base_path", type=str, required=True,
                         help="Base directory containing the dataset (e.g., ./ds003846-2.0.2).")
-    parser.add_argument("--subject", type=str, required=True,
-                        help="Subject identifier (e.g., sub-02).")
+    parser.add_argument("--subjects", nargs="+", type=str, required=True,
+                        help="Space-separated list of subject identifiers (e.g., sub-02 sub-03).")
     parser.add_argument("--outdir", type=str, required=False, default=None,
                         help="Optional directory to save the cleaned Raw files.")
     args = parser.parse_args()
 
     base_path = Path(args.base_path)
-    subject = args.subject
+    subjects = args.subjects
     outdir = Path(args.outdir) if args.outdir else Path("./processed_eeg_data")
 
-    print(f"\n\n>>> Starting pipeline for {subject} <<<")
+    for subject in subjects:
+        print(f"\n\n>>> Starting pipeline for {subject} <<<")
 
-    raw_sessions = load_raw_sessions(base_path, subject)
-    raw_sessions = preprocess_raw_sessions(raw_sessions)
+        raw_sessions = load_raw_sessions(base_path, subject)
+        raw_sessions = preprocess_raw_sessions(raw_sessions)
 
-    for session, raw in raw_sessions.items():
-        check_channel_statistics(raw, session)
-        # Uncomment the next line to display PSD plots:
-        # plot_psd_sanity(raw, session)
+        for session, raw in raw_sessions.items():
+            check_channel_statistics(raw, session)
+            # Uncomment the next line to display PSD plots:
+            # plot_psd_sanity(raw, session)
 
-    clean_sessions = run_ica_label_exclude(raw_sessions)
+        # Unpack the returned tuple from run_ica_label_exclude
+        ica_instance, clean_sessions = run_ica_label_exclude(raw_sessions)
 
-    if outdir:
         subject_outdir = outdir / subject
         subject_outdir.mkdir(exist_ok=True, parents=True)
         for sess, raw_clean in clean_sessions.items():
@@ -41,7 +42,9 @@ def main():
             print(f"Saving cleaned {sess} data to {out_path}")
             raw_clean.save(out_path, overwrite=True)
 
-    print("\n>>> Pipeline complete! <<<\n")
+        print(f"\n>>> Finished {subject} <<<")
+
+    print("\n>>> All subjects processed! <<<\n")
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
 import mne
 from mne_icalabel import label_components
-from src.config import ICA_N_COMPONENTS, ICA_RANDOM_STATE
+from config import ICA_N_COMPONENTS, ICA_RANDOM_STATE
 
 
 def run_ica_label_exclude(raw_sessions, n_components=ICA_N_COMPONENTS, random_state=ICA_RANDOM_STATE):
