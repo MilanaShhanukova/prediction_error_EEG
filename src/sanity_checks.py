@@ -14,7 +14,7 @@ def plot_psd_sanity(raw, session):
         Name of the session.
     """
     print(f"Plotting PSD for sanity check of {session}...")
-    raw.plot_psd(fmin=0.5, fmax=50, average=True, show=True)
+    raw.plot_psd(fmin=0.5, fmax=125, average=True, show=True)
 
 
 def check_channel_statistics(raw, session):
@@ -33,4 +33,4 @@ def check_channel_statistics(raw, session):
     std_vals = data.std(axis=1)
     print(f"\nChannel statistics for {session}:")
     for ch, mean, std in zip(raw.ch_names, mean_vals, std_vals):
-        print(f"  {ch}: mean = {mean:.2f}, std = {std:.2f}")
+        print(f"  {ch}: mean = {mean:.10f}, std = {std:.10f}")
