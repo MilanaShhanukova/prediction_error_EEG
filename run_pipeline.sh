@@ -21,7 +21,7 @@ echo "Preparing and standardizing raw EEG files for bids pipeline...ex"
 python3 -u prepare_raw.py
 
 # ----------------------------------------
-# 3. Run the core pipeline (up to ICA fitting)
+# 3. Run the pipeline up to ICA fitting
 # ----------------------------------------
 # Here we invoke the MNE-BIDS-Pipeline steps:
 #   - set standard_1020 montage
@@ -31,10 +31,17 @@ python3 -u prepare_raw.py
 #
 # We stop after the ICA is fitted, because we plan to apply ICLabel
 # and exclude components ourselves on the raw data.
+# Actually we are using a fork of the mne-bids-pipeline that support the ica label tool.
+# However, we get inconsitent results compared to our python pipeline so we dont use it here.
 echo "Running MNE-BIDS-Pipeline steps..."
 mne_bids_pipeline \
   --config config.py \
-  --steps preprocessing/_01_data_quality,preprocessing/_04_frequency_filter,preprocessing/_06a1_fit_ica,preprocessing/_06a2_find_ica_artifacts,preprocessing/_07_make_epochs,preprocessing/_08a_apply_ica
+  --steps preprocessing/_01_data_quality,preprocessing/_04_frequency_filter,preprocessing/_06a1_fit_ica,preprocessing/_07_make_epochs
+
+# add this two steps to the command above to use the automatic ica labeling and artificat rejection in the bids pipeline. If you do this comment out step 4.
+# preprocessing/_06a2_find_ica_artifacts
+# preprocessing/_08a_apply_ica
+
 
 # ----------------------------------------
 # 4. Apply ICLabel and exclude unwanted ICs
@@ -42,8 +49,8 @@ mne_bids_pipeline \
 # We rely on ICLabel to classify each ICA component and then we remove
 # components not labeled as "brain" or "other". We do this on the
 # raw data.
-# echo "Applying ICLabel and removing non-brain components..."
-# python3 -u apply_iclabel.py
+echo "Applying ICLabel and removing non-brain components..."
+python3 -u apply_iclabel.py
 
 # ----------------------------------------
 # 5. Group-level analysis
@@ -61,5 +68,5 @@ mne_bids_pipeline \
 #   6) Finally, we plot the grand averages for “normal,” “conflict,” and
 #      their difference, all on a single figure for quick comparison.
 #
-# For more detailes refer to the accompanying notebook which contains additional plots and steps.
+
 python3 -u group_analysis.py

@@ -4,7 +4,7 @@ import mne
 from mne_bids import BIDSPath
 
 bids_root = Path("./ds003846-2.0.2")
-subjects = ["02", "06"]
+subjects = ["02", "06", "07", "08", "11", "12", "13", "14", "15", "16"]
 sessions = ["EMS", "Vibro", "Visual"]
 task = "PredictionError"
 

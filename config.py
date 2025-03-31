@@ -3,7 +3,8 @@ bids_root      = "./ds003846-2.0.2"      # original raw
 deriv_root     = "./bids_derivatives"    # processed *.fif files
 
 # ─── SUBJECTS & SESSIONS ───────────────────────────────────────────────────────
-subjects       = ["02", "06"]
+# There are a total of 19 subject, sub-03 has different session names inconsistent ,
+subjects       = ["02", "06", "07", "08", "11", "12", "13", "14", "15", "16"]
 sessions       = ["EMS", "Vibro", "Visual"]
 
 # ─── EEG PREPROCESSING ─────────────────────────────────────────────────────────
@@ -12,8 +13,8 @@ data_type             = 'eeg'
 eeg_template_montage  = "standard_1020"
 # IClabel requirest hfreq <= 100Hz
 l_freq                = 1
-h_freq                = 100
-raw_resample_sfreq    = 200
+h_freq                = 124.9
+raw_resample_sfreq    = 250
 
 # find_flat_channels_meg = True
 # find_noisy_channels_meg = True
@@ -28,11 +29,11 @@ random_state          = 42
 spatial_filter        = "ica"
 ica_algorithm         = "extended_infomax"
 ica_n_components      = 20
-ica_use_icalabel      = True
+# ica_use_icalabel      = True
 # Only keep brain and other
-icalabel_include      = ["brain", "other"]
-ica_use_eog_detection = False
-ica_use_ecg_detection = False
+# icalabel_include      = ["brain", "other"]
+# ica_use_eog_detection = False
+# ica_use_ecg_detection = False
 # reject                = None
 
 # ─── EPOCHING ───────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ epochs_tmax           = 10.0
 rest_epochs_overlap   = 0.0
 rest_epochs_duration  = 10.0
 baseline              = None
-reject                = 'autoreject_global'
+# reject                = 'autoreject_global'
 
 # ─── PARALLELIZATION ───────────────────────────────────────────────────────────
 n_jobs               = 4
